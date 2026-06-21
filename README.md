@@ -225,8 +225,10 @@ You'll be asked to type `RESET` to confirm (pass `--yes` to skip the prompt),
 then to **touch the key**. Two caveats imposed by the authenticator itself:
 
 * A reset is only accepted **shortly after the key is powered up** (typically
-  within ~10 seconds of being plugged in). If you get *"operation denied"*,
-  unplug the key, plug it back in, and run `vmguard reset` again right away.
+  within ~10 seconds of being plugged in), and *any* other command to the key
+  (even `vmguard info`) consumes that window. If you get *"not allowed"* /
+  *"operation denied"*, unplug the key, plug it back in, and run `vmguard reset`
+  **first**, before anything else touches the key.
 * This is the only way to recover a key that has **locked itself** after too many
   wrong-PIN attempts — but it erases your enrolled fingerprints in the process,
   so you'll re-run the wizard afterward.

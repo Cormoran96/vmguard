@@ -140,12 +140,16 @@ fn send_init_packet(dev: &HidDevice, cid: [u8; 4], cmd: u8, data: &[u8]) -> Resu
 
 /// Human-readable message for the CTAP status codes a reset can return.
 fn ctap_status_message(status: u8) -> String {
+    // The reset time-window restriction is reported as CTAP2_ERR_NOT_ALLOWED
+    // (0x30) by this key, and as CTAP2_ERR_OPERATION_DENIED (0x27) by others —
+    // both mean "too long since power-up", so give the same fix.
+    let window_hint = "reset is only allowed shortly after power-up. \
+        Unplug the key, plug it back in, and run 'vmguard reset' within ~10 seconds \
+        (do nothing else with the key in between).";
     match status {
-        0x27 => "operation denied — reset is only allowed shortly after power-up. \
-                 Unplug the key, plug it back in, and run 'vmguard reset' within ~10 seconds."
-            .to_string(),
+        0x27 => format!("operation denied — {window_hint}"),
+        0x30 => format!("not allowed — {window_hint}"),
         0x2f => "timed out waiting for your touch (CTAP2_ERR_USER_ACTION_TIMEOUT).".to_string(),
-        0x30 => "not allowed (CTAP2_ERR_NOT_ALLOWED).".to_string(),
         0x3a => "operation timed out (CTAP2_ERR_ACTION_TIMEOUT).".to_string(),
         0x3b => "user presence required — touch the key (CTAP2_ERR_UP_REQUIRED).".to_string(),
         other => format!("CTAP error 0x{other:02x}"),
