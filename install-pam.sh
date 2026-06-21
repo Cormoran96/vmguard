@@ -308,6 +308,11 @@ if [ "$need_register" = 1 ]; then
   fi
 fi
 
+# pam_u2f warns (and will soon error) on group/other-accessible authfiles; a
+# default umask of 002 leaves the file 0664, so tighten it whether we just
+# wrote it or kept an existing one.
+[ -f "$USER_AUTHFILE" ] && chmod 600 "$USER_AUTHFILE"
+
 # --- 7. encrypted home / authfile --------------------------------------------
 step "Encrypted home directory?"
 note "GDM and console login run BEFORE your \$HOME is mounted, so they can't read"

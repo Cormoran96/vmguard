@@ -139,7 +139,7 @@ Do this once, before touching PAM.
    ```sh
    mkdir -p ~/.config/Yubico
    pamu2fcfg -V > ~/.config/Yubico/u2f_keys
-   # append more credentials with:  pamu2fcfg -V >> ~/.config/Yubico/u2f_keys
+   chmod 600 ~/.config/Yubico/u2f_keys   # pam_u2f rejects group/other-accessible files
    ```
 
 > `pamu2fcfg` uses Yubico's default `~/.config/Yubico/u2f_keys` path even though
