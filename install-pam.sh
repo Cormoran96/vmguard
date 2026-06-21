@@ -100,7 +100,8 @@ build_pam_line() {  # build_pam_line [authfile]
 }
 
 install_service() {  # install_service SERVICE [authfile]
-  local service="$1" authfile="${2:-}" target="$PAM_DIR/$service"
+  local service="$1" authfile="${2:-}"
+  local target="$PAM_DIR/$service"
   if [ ! -f "$target" ]; then
     warn "no PAM service file at $target — skipping '$service'."
     return 1
@@ -140,7 +141,8 @@ install_service() {  # install_service SERVICE [authfile]
 }
 
 revert_service() {  # revert_service SERVICE
-  local service="$1" target="$PAM_DIR/$service" backup
+  local service="$1" backup
+  local target="$PAM_DIR/$service"
   [ -f "$target" ] || die "PAM service file not found: $target"
   backup=$(run_root bash -c "ls -1t '$target'.u2f-bak.* 2>/dev/null | head -1" || true)
   [ -n "$backup" ] || die "no backup found for '$service' (looked for $target.u2f-bak.*)"
