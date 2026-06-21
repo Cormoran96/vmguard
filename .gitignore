@@ -1,0 +1,11 @@
+# Rust build output
+/target
+
+# Backups produced by install-pam.sh live under /etc/pam.d, not here,
+# but ignore any local copies just in case.
+*.u2f-bak.*
+
+# Editor / OS cruft
+*.swp
+*~
+.DS_Store
