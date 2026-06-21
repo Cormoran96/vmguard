@@ -83,6 +83,7 @@ vmguard bio-enroll --name <name>   # enroll a finger (touch sensor ~7x)
 vmguard bio-list                   # list enrolled fingerprints
 vmguard bio-delete --id <hex>      # remove a fingerprint (id from bio-list)
 vmguard wink                       # blink the key's LED (confirm you've got the right device)
+vmguard reset                      # FACTORY RESET — wipe PIN + all fingerprints + credentials
 ```
 
 PINs are prompted without echo. Pass `--pin <PIN>` to scripts only if you accept
@@ -211,6 +212,25 @@ Notes:
   credential (`pamu2fcfg -V`). For encrypted homes, use `--authfile`.
 * **Wrong-PIN lockout** — see Security notes below.
 
+## Starting over — factory reset
+
+To wipe the key completely — the PIN, every credential, and every enrolled
+fingerprint — and return it to factory state:
+
+```sh
+vmguard reset
+```
+
+You'll be asked to type `RESET` to confirm (pass `--yes` to skip the prompt),
+then to **touch the key**. Two caveats imposed by the authenticator itself:
+
+* A reset is only accepted **shortly after the key is powered up** (typically
+  within ~10 seconds of being plugged in). If you get *"operation denied"*,
+  unplug the key, plug it back in, and run `vmguard reset` again right away.
+* This is the only way to recover a key that has **locked itself** after too many
+  wrong-PIN attempts — but it erases your enrolled fingerprints in the process,
+  so you'll re-run the wizard afterward.
+
 ## Security notes
 
 * Wrong-PIN attempts decrement a retry counter; exhausting it **locks the key**
@@ -230,6 +250,8 @@ crate. It speaks CTAP2 over CTAPHID directly to the key:
 * `set-pin` → clientPIN `setPIN`
 * `bio-enroll` / `bio-list` / `bio-delete` → `authenticatorBioEnrollment`
 * `info` / `bio-info` → `authenticatorGetInfo` + bio sensor info
+* `reset` → `authenticatorReset` (sent over a hand-rolled CTAPHID layer on
+  `hidapi`, since `ctap-hid-fido2` doesn't expose reset)
 
 Login is handled entirely by `pam_u2f`; `vmguard` is only the enrollment/management half.
 

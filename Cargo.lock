@@ -790,6 +790,7 @@ dependencies = [
  "anyhow",
  "clap",
  "ctap-hid-fido2",
+ "hidapi",
  "rpassword",
 ]
 

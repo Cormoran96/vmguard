@@ -11,6 +11,9 @@ use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
 use ctap_hid_fido2::fidokey::get_info::InfoOption;
 use ctap_hid_fido2::{Cfg, FidoKeyHid, FidoKeyHidFactory};
+use std::io::{self, Write};
+
+mod reset;
 
 const VID: u16 = 0x047d;
 const PID: u16 = 0x813f;
@@ -61,6 +64,12 @@ enum Cmd {
     },
     /// Make the key's LED blink, to confirm you're talking to the right device.
     Wink,
+    /// Factory-reset the key: ERASES the PIN, all credentials, and all fingerprints.
+    Reset {
+        /// Skip the confirmation prompt.
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 fn main() -> Result<()> {
@@ -77,7 +86,26 @@ fn main() -> Result<()> {
             bio_delete(&pin_or_prompt(pin, "Device PIN: ")?, &id)
         }
         Cmd::Wink => device()?.wink().map_err(|e| anyhow!(e)),
+        Cmd::Reset { yes } => reset_cmd(yes),
     }
+}
+
+/// Confirm (unless `--yes`) and then factory-reset the key.
+fn reset_cmd(yes: bool) -> Result<()> {
+    if !yes {
+        println!(
+            "This will ERASE the device PIN, all credentials, and all enrolled\n\
+             fingerprints on the VeriMark Guard. This cannot be undone."
+        );
+        print!("Type 'RESET' to confirm: ");
+        io::stdout().flush()?;
+        let mut line = String::new();
+        io::stdin().read_line(&mut line)?;
+        if line.trim() != "RESET" {
+            return Err(anyhow!("aborted (you did not type RESET)"));
+        }
+    }
+    reset::reset(VID, PID)
 }
 
 /// Open the VeriMark Guard specifically (ignores any other FIDO keys).
