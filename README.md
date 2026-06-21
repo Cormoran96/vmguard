@@ -90,6 +90,36 @@ it landing in shell history / the process list.
 
 ---
 
+## Quick start — the setup wizard
+
+The fastest path is the interactive wizard. Run it **as your normal user** (not
+with `sudo` — it asks for `sudo` only when it needs to edit `/etc/pam.d`):
+
+```sh
+./install-pam.sh
+```
+
+It walks you through everything, detecting and skipping steps you've already done:
+
+1. locating (or offering to build) the `vmguard` binary,
+2. checking `pam_u2f` / `pamu2fcfg` are installed,
+3. confirming the key is plugged in (and winking its LED),
+4. setting a device PIN (if none is set),
+5. enrolling a fingerprint (if none is enrolled),
+6. registering the key's credential for PAM via `pamu2fcfg`,
+7. handling an encrypted home (system-wide authfile), and
+8. enabling the PAM services you pick — `sudo`, graphical login, TTY login, … —
+   each with a timestamped backup.
+
+To undo a service later:
+
+```sh
+./install-pam.sh --revert <service>     # e.g. gdm-password; omit to be prompted
+```
+
+If you'd rather do it by hand (or want to understand what the wizard does), the
+manual steps are below.
+
 ## Step 1 — enroll a fingerprint and register the key
 
 Do this once, before touching PAM.
@@ -140,27 +170,31 @@ sudo cp ~/.config/Yubico/u2f_keys /etc/u2f_mappings        # only for gdm/login 
 sudo chmod 644 /etc/u2f_mappings
 ```
 
-Then enable each service you want. Do `sudo` first and verify before the rest.
+Then add the rule above to each service's file in `/etc/pam.d`, just before its
+`@include common-auth` line (the wizard does exactly this, with a backup). Enable
+`sudo` first and verify it before touching the login services. These are the
+services worth enabling, what each unlocks, and how to test it:
 
-| Unlocks | PAM service | Install command | Verify |
+| Unlocks | PAM service | Needs `authfile=`? | Verify |
 |---|---|---|---|
-| `sudo` / `sudo -s` | `sudo` | `sudo ./install-pam.sh` | `sudo -k && sudo true` |
-| `sudo -i` (login shell) | `sudo-i` | `sudo ./install-pam.sh sudo-i` | `sudo -k && sudo -i` |
-| Graphical login | `gdm-password` | `sudo ./install-pam.sh gdm-password --authfile /etc/u2f_mappings` | log out, log back in |
-| Console login (TTY) | `login` | `sudo ./install-pam.sh login --authfile /etc/u2f_mappings` | switch to a TTY (Ctrl+Alt+F3) |
+| `sudo` / `sudo -s` | `sudo` | no | `sudo -k && sudo true` |
+| `sudo -i` (login shell) | `sudo-i` | no | `sudo -k && sudo -i` |
+| Graphical login | `gdm-password` | yes (encrypted home) | log out, log back in |
+| Console login (TTY) | `login` | yes (encrypted home) | switch to a TTY (Ctrl+Alt+F3) |
 
 Notes:
 
 * `sudo -i` reads its **own** PAM service `sudo-i`, separate from `sudo` — enable
   both if you use `sudo -i`. `sudo -s` uses the plain `sudo` service.
-* `--authfile` is only needed for services that run before an encrypted home is
-  mounted (`gdm-password`, `login`). `sudo`/`sudo-i` run after login, so they use
-  the per-user `~/.config/Yubico/u2f_keys` and need no `--authfile`.
+* `authfile=/etc/u2f_mappings` is only needed for services that run before an
+  encrypted home is mounted (`gdm-password`, `login`). `sudo`/`sudo-i` run after
+  login, so they use the per-user `~/.config/Yubico/u2f_keys` and need no
+  `authfile=`. Drop the `[authfile=…]` part of the rule for those.
 * The PAM service file names above are Debian/Ubuntu conventions. Other distros
   may differ (e.g. `gdm-password` vs `gdm`); check your `/etc/pam.d`.
-* **Revert any service** with `sudo ./install-pam.sh --revert <service>` (restores
-  the newest timestamped backup). Test each in a *fresh* session with the root
-  shell still open.
+* **Revert any service** with `./install-pam.sh --revert <service>` (restores the
+  newest timestamped backup the wizard made). Test each in a *fresh* session with
+  the root shell still open.
 * Re-run `sudo cp ~/.config/Yubico/u2f_keys /etc/u2f_mappings` whenever you
   add/remove credentials with `pamu2fcfg` — the system copy doesn't auto-update.
 
