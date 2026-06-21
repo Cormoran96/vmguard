@@ -145,6 +145,20 @@ Do this once, before touching PAM.
 > `pamu2fcfg` uses Yubico's default `~/.config/Yubico/u2f_keys` path even though
 > this isn't a YubiKey — that's just where `pam_u2f` looks by default.
 
+> **If `pamu2fcfg -V` fails with `fido_dev_make_cred (-7) FIDO_ERR_INVALID_ARGUMENT`:**
+> some firmware rejects the `-V` (user-verification) flag when a device PIN is
+> set. Register **without** `-V` instead:
+> ```sh
+> pamu2fcfg > ~/.config/Yubico/u2f_keys
+> ```
+> Your fingerprint is still required at login because the PAM rule uses
+> `userverification=1`, which forces UV on every assertion regardless of how the
+> credential was registered.
+
+> **After a factory reset**, the old `~/.config/Yubico/u2f_keys` is stale (its
+> credential no longer exists on the key) — overwrite it with `>` (as above), don't
+> append.
+
 ## Step 2 — wire up PAM
 
 `install-pam.sh` inserts this rule just before `@include common-auth` in the

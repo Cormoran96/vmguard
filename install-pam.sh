@@ -258,16 +258,54 @@ fi
 
 # --- 6. register credential for PAM ------------------------------------------
 step "Registering the key for PAM (pamu2fcfg)"
+
+# Run pamu2fcfg once and, on success, print the credential line to stdout.
+# $1 = "uv" to request user-verification (-V), anything else for plain.
+# pamu2fcfg writes the credential to stdout and its prompts/errors to stderr,
+# so we capture stdout and let the touch/PIN prompts through. Wrapped in `if`
+# so a failure never aborts the wizard.
+get_cred() {
+  local flag="" line
+  [ "$1" = uv ] && flag="-V"
+  if line=$(pamu2fcfg $flag) && [ -n "$line" ]; then
+    printf '%s\n' "$line"
+    return 0
+  fi
+  return 1
+}
+
+need_register=1
 if [ -s "$USER_AUTHFILE" ]; then
-  ok "credential mapping already exists: $USER_AUTHFILE"
-  ask_yn "Register an additional credential (append)?" N && \
-    { mkdir -p "$(dirname "$USER_AUTHFILE")"; pamu2fcfg -V >> "$USER_AUTHFILE"; ok "appended."; }
-else
-  note "Touch your enrolled finger when the key blinks."
+  ok "a credential mapping already exists: $USER_AUTHFILE"
+  note "If you just reset the key, that mapping is now stale and must be replaced."
+  ask_yn "Re-register now (replace the existing mapping)?" N || need_register=0
+fi
+
+if [ "$need_register" = 1 ]; then
   mkdir -p "$(dirname "$USER_AUTHFILE")"
-  pamu2fcfg -V > "$USER_AUTHFILE"
-  [ -s "$USER_AUTHFILE" ] || { rm -f "$USER_AUTHFILE"; die "registration produced no credential."; }
-  ok "credential saved to $USER_AUTHFILE"
+  note "Touch your enrolled finger (or enter the PIN) when prompted."
+  if cred=$(get_cred uv); then
+    printf '%s\n' "$cred" > "$USER_AUTHFILE"
+    ok "credential saved (user-verification recorded)."
+  else
+    # Some firmware rejects make_credential when -V (uv) is combined with a
+    # device PIN — pamu2fcfg fails with FIDO_ERR_INVALID_ARGUMENT. Registering
+    # without -V still works, and the PAM rule's `userverification=1` (always
+    # added below) forces the fingerprint at login, so UV is still enforced.
+    warn "pamu2fcfg -V (user-verification) failed — this key may reject -V when a"
+    warn "  PIN is set. We can register without -V; your fingerprint is STILL required"
+    warn "  at login via the PAM 'userverification=1' option this wizard adds."
+    if ask_yn "Register without -V (fingerprint still enforced at login)?" Y; then
+      if cred=$(get_cred plain); then
+        printf '%s\n' "$cred" > "$USER_AUTHFILE"
+        ok "credential saved (UV enforced at login by PAM)."
+      else
+        die "pamu2fcfg still failed — see the error above, fix it, and re-run."
+      fi
+    else
+      die "no credential registered — re-run when ready."
+    fi
+  fi
 fi
 
 # --- 7. encrypted home / authfile --------------------------------------------
